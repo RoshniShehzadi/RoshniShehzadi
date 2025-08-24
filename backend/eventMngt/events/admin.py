@@ -86,17 +86,17 @@ class PaymentAdmin(admin.ModelAdmin):
     ordering = ('-payment_datetime',)
 
 
-# ---------------------- Review Admin ----------------------
-@admin.register(Review)
-class ReviewAdmin(admin.ModelAdmin):
-    # Show who reviewed, which booking, rating, and when it was created
-    list_display = ('user', 'booking', 'rating', 'created_at')
+# # ---------------------- Review Admin ----------------------
+# @admin.register(Review)
+# class ReviewAdmin(admin.ModelAdmin):
+#     # Show who reviewed, which booking, rating, and when it was created
+#     list_display = ('user', 'booking', 'rating', 'created_at')
 
-    # Allow filtering by rating
-    list_filter = ('rating',)
+#     # Allow filtering by rating
+#     list_filter = ('rating',)
 
-    # Enable search by reviewer's name and booking's event title
-    search_fields = ('user__name', 'booking__event__title')
+#     # Enable search by reviewer's name and booking's event title
+#     search_fields = ('user__name', 'booking__event__title')
 
-    # Show latest reviews first
-    ordering = ('-created_at',)
+#     # Show latest reviews first
+#     ordering = ('-created_at',)

@@ -123,18 +123,18 @@ def get_events(request):
 
 
 # ---------------------- READ SINGLE EVENT ----------------------
-@api_view(['GET'])  # Only allow GET requests
-def get_event(request, pk):
-    try:
-        # Try to find the event with given primary key (id)
-        event = Event.objects.get(pk=pk)
-    except Event.DoesNotExist:
-        # If not found, return error response
-        return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
+@api_view(['GET'])
+def get_my_events(request):
+    """
+    Returns all events created by the logged-in user
+    """
+    user = request.user  # Currently logged-in user
 
-    # If found, serialize the event into JSON
-    serializer = EventSerializer(event)
-    return Response(serializer.data)
+    # Filter events where the logged-in user is the organizer
+    events = Event.objects.filter(organizer=user)
+
+    serializer = EventSerializer(events, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 # ---------------------- UPDATE EVENT (FULL) ----------------------
@@ -286,19 +286,47 @@ def get_all_bookings(request):
         # SELECT * FROM events_booking;
 
     # Organizer: can see bookings only for their events
-    elif user.role == 'organizer':
+    else:
         bookings = Booking.objects.filter(event__organizer=user)
         # PostgreSQL query:
         # SELECT * FROM events_booking
         # JOIN events_event ON events_booking.event_id = events_event.event_id
         # WHERE events_event.organizer_id = <user_id>;
-
-    # Customer: can see only their own bookings
-    else:
         bookings = Booking.objects.filter(customer=user)
         # PostgreSQL query:
         # SELECT * FROM events_booking WHERE customer_id = <user_id>;
+        bookings = (customer_bookings | organized_bookings).distinct()
+
 
     # Convert Booking objects to JSON to send to frontend
     serializer = BookingSerializer(bookings, many=True)
     return Response(serializer.data)
+
+# ---------------------- CANCEL BOOKING ----------------------
+@api_view(['POST'])
+def cancel_booking(request, booking_id):
+    """
+    Allows a customer to cancel their booking.
+    Only the customer who made the booking can cancel it.
+    """
+    user = request.user  # Current logged-in user
+
+    try:
+        booking = Booking.objects.get(booking_id=booking_id)
+    except Booking.DoesNotExist:
+        return Response({"error": "Booking not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    # Only the customer who made the booking can cancel it
+    if booking.customer != user:
+        return Response({"error": "You are not allowed to cancel this booking"}, status=status.HTTP_403_FORBIDDEN)
+
+    # If already cancelled, inform the user
+    if booking.status == 'cancelled':
+        return Response({"message": "Booking is already cancelled"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Update status to cancelled
+    booking.status = 'cancelled'
+    booking.save()
+
+    serializer = BookingSerializer(booking)
+    return Response(serializer.data, status=status.HTTP_200_OK)
